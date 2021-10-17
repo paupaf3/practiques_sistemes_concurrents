@@ -1,0 +1,7 @@
+Map.o: Map.cpp Map.h Types.h MyQueue.h MyQueue.cpp
+MapReduce.o: MapReduce.cpp MapReduce.h Map.h Types.h MyQueue.h \
+ MyQueue.cpp Reduce.h
+Reduce.o: Reduce.cpp Reduce.h Map.h Types.h MyQueue.h MyQueue.cpp
+Types.o: Types.cpp Types.h
+WordCount.o: WordCount.cpp Types.h MapReduce.h Map.h MyQueue.h \
+ MyQueue.cpp Reduce.h
