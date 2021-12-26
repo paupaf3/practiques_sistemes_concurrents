@@ -67,11 +67,15 @@ class Reduce
 		while(keyIterator.hasNext())
 		{
 			String key = keyIterator.next();
-			
-			Error err = mapReduce.Reduce(this, key, Input.get(key));
-			if (err!=Error.COk)
-				return(err);
-			
+
+			// Evitem strings buits
+			if(!key.isBlank())
+			{
+				Error err = mapReduce.Reduce(this, key, Input.get(key));
+				if (err!=Error.COk)
+					return(err);
+			}
+
 			keyIterator.remove();
 		}
 		

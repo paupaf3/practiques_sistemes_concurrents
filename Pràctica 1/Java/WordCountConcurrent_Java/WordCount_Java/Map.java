@@ -7,6 +7,7 @@ import com.google.common.collect.*;
 
 class MapInputTuple
 {
+	public static String END_OF_SPLIT = "END_OF_SPLIT";
 	long 	Key;
 	String	Value;
 
@@ -42,7 +43,21 @@ public class Map
 	{
 		return(Output);
 	}
-	
+
+	public void threadSleepWhileInputIsEmpty()
+	{
+		while(this.Input.isEmpty())
+		{
+			try
+			{
+				Thread.sleep(100);
+			}
+			catch (InterruptedException e)
+			{
+				Error.showError("MapReduce:: Map Sleep Thread Error");
+			}
+		}
+	}
 	
 	public void PrintOutputs()
 	{
@@ -80,6 +95,9 @@ public class Map
 				AddInput(new MapInputTuple(Offset, line));
 			    Offset+=line.length();
 			}
+			// Indiquem el final de fitxer per poder controla la lectura a la tasca de Map.
+			AddInput(new MapInputTuple(Offset + 1, MapInputTuple.END_OF_SPLIT));
+
 		}
 		catch (IOException e)
 		{
@@ -109,11 +127,13 @@ public class Map
 
 	// Ejecuta la tarea de Map: recorre la cola de tuplas de entrada y para cada una de ellas
 	// invoca a la función de Map especificada por el programador.
-	public Error Run() 
+	public Error Run()
 	{
 		Error err;
 
-		while (!Input.isEmpty())
+		this.threadSleepWhileInputIsEmpty();
+
+		while (!this.Input.get(0).getValue().equals(MapInputTuple.END_OF_SPLIT))
 		{
 			if (MapReduce.DEBUG) System.err.println("DEBUG::Map process input tuple " + Input.get(0).getKey() +" -> " + Input.get(0).getValue());
 			err = mapReduce.Map(this, Input.get(0));
@@ -121,7 +141,12 @@ public class Map
 				return(err);
 
 			Input.remove(0);
+
+			this.threadSleepWhileInputIsEmpty();
 		}
+
+		// Eliminar el END_OF_SPLIT de Input
+		Input.remove(0);
 
 		return(Error.COk);
 	}

@@ -8,12 +8,13 @@ public class WordCountMR extends MapReduce
 	public WordCountMR(String[] args) 
 	{
 		// Procesar argumentos.
-		if (args.length!=2)
+		if (args.length!=3)
 			throw new IllegalArgumentException("Illegal command line argument: WordCount <input dir> <ouput dir>.\n");
 	
 		SetInputPath(args[0]);
 		SetOutputPath(args[1]);
-		SetReducers(1);
+		SetReducers(Integer.parseInt(args[2]));
+
 	}
 
 	// Word Count Map.

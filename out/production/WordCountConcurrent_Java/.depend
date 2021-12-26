@@ -1,0 +1,5 @@
+Map.o: Map.cpp Map.h Types.h
+MapReduce.o: MapReduce.cpp MapReduce.h Map.h Types.h Reduce.h
+Reduce.o: Reduce.cpp Reduce.h Map.h Types.h
+Types.o: Types.cpp Types.h
+WordCount.o: WordCount.cpp Types.h MapReduce.h Map.h Reduce.h

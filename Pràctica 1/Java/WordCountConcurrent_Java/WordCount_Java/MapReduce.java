@@ -5,13 +5,72 @@ import java.util.Vector;
  
 abstract class MapReduce 
 {
-	public static final boolean DEBUG = false;	
-	
+	public static final boolean DEBUG = false;
+
+	private Thread[] splitThreads;
+	private Thread[] mapThreads;
+	//private Thread[] suffleThreads;
+	private Thread[] reduceThreads;
+
 	private String 	InputPath;
 	private String 	OutputPath;
 		
 	private Vector<Map> Mappers =  new Vector<Map>();
 	private Vector<Reduce> Reducers =  new Vector<Reduce>();
+
+	//private Vector<String> suffledKeys = new Vector<String>();
+
+	public class ConcurrentSplit implements Runnable
+	{
+		Map map;
+		String filePath;
+
+		public ConcurrentSplit(Map map, String filePath)
+		{
+			this.map = map;
+			this.filePath = filePath;
+		}
+
+		@Override
+		public void run()
+		{
+			if(this.map.ReadFileTuples(this.filePath)!=Error.COk)
+				Error.showError("MapReduce::Run-Error Concurrent Split");
+		}
+	}
+
+	public class ConcurrentMap implements Runnable
+	{
+		Map map;
+
+		public ConcurrentMap(Map map)
+		{
+			this.map = map;
+		}
+
+		public void run()
+		{
+			if (this.map.Run()!=Error.COk)
+				Error.showError("MapReduce::Run-Error Concurrent Map");
+		}
+	}
+
+	public class ConcurrentRecude implements Runnable
+	{
+		Reduce reduce;
+
+		private ConcurrentRecude(Reduce reduce)
+		{
+			this.reduce = reduce;
+		}
+
+		@Override
+		public void run()
+		{
+			if(this.reduce.Run()!=Error.COk)
+				Error.showError("MapReduce::Run-Error Concurrent Reduce");
+		}
+	}
 
 	public MapReduce()
 	{
@@ -29,7 +88,17 @@ abstract class MapReduce
 		SetOutputPath(output);
 		SetReducers(nReducers);
 	}
-	
+
+	/*
+	private boolean alreadySuffledKeys(String key)
+	{
+		return suffledKeys.contains(key);
+	}
+
+	private void putToSuffledKeys(String key)
+	{
+		suffledKeys.add(key);
+	}*/
 	
 	private void AddMap(Map map) 
 	{ 
@@ -81,25 +150,28 @@ abstract class MapReduce
 
 	// Genera y lee diferentes splits: 1 split por fichero.
 	// Versión secuencial: asume que un único Map va a procesar todos los splits.
-	// TODO versión concurrente va a ejecutar un Mapper por fichero
+	// Versión concurrente: va a crear un Mapper por fichero, un Mapper por cada Split.
 	private Error Split(String input)
 	{
 		File folder = new File(input);
-
-		Map map = new Map(this);
-		AddMap(map);
 		
 		if (folder.isDirectory()) 
 		{
 			File[] listOfFiles = folder.listFiles();
-		
+
+			Map[] map = new Map[listOfFiles.length];
+			splitThreads = new Thread[listOfFiles.length];
+
 			/* Read all the files and directories within directory */
-		    for (int i = 0; i < listOfFiles.length; i++) 
+		    for (int i = 0; i < listOfFiles.length; i++)
 		    {
 		    	if (listOfFiles[i].isFile()) 
 		    	{
+					map[i] = new Map(this);
+					AddMap(map[i]);
+					splitThreads[i] = new Thread(new ConcurrentSplit(map[i], listOfFiles[i].getAbsolutePath()));
 		    		System.out.println("Processing input file " + listOfFiles[i].getAbsolutePath() + ".");
-		    		map.ReadFileTuples(listOfFiles[i].getAbsolutePath());
+					splitThreads[i].start();
 		    	}
 		    	else if (listOfFiles[i].isDirectory())
 				{
@@ -109,21 +181,53 @@ abstract class MapReduce
 		}
 		else 
 		{
+			Map map = new Map(this);
+			Thread thread = new Thread(new ConcurrentSplit(map, folder.getAbsolutePath()));
 			System.out.println("Processing input file " + folder.getAbsolutePath() + ".");
-    		map.ReadFileTuples(folder.getAbsolutePath());
+			thread.start();
 		}
+
+		try
+		{
+			for(Thread thread : splitThreads)
+				thread.join();
+
+		}
+		catch (InterruptedException e)
+		{
+			for(Thread thread : splitThreads)
+				thread.interrupt();
+			Error.showError("MapReduce:: Error joining Split Threads");
+		}
+
+
+
 		return(Error.COk);
 	}
 	
 	
 	// Ejecuta cada uno de los Maps.
 	private Error Maps()
-	{	
-		for(Map map : Mappers)
+	{
+		mapThreads = new Thread[Mappers.size()];
+
+		for(int i = 0; i < Mappers.size(); i++)
 		{
-			if (MapReduce.DEBUG) System.err.println("DEBUG::Running Map "+ map);
-			if (map.Run()!=Error.COk)
-				Error.showError("MapReduce::Map Run error.\n");
+			if (MapReduce.DEBUG) System.err.println("DEBUG::Running Map "+ Mappers.get(i));
+			mapThreads[i] = new Thread(new ConcurrentMap(Mappers.get(i)));
+			mapThreads[i].start();
+		}
+
+		try
+		{
+			for(Thread thread : mapThreads)
+				thread.join();
+		}
+		catch (InterruptedException e)
+		{
+			for(Thread thread : mapThreads)
+				thread.interrupt();
+			Error.showError("MapReduce:: Error joining Map Threads");
 		}
 		
 		return(Error.COk);
@@ -148,36 +252,104 @@ abstract class MapReduce
 			if (MapReduce.DEBUG) map.PrintOutputs();
 
 			for (String key : map.GetOutput().keySet())
-			{		    
-			    // Calcular a que reducer le corresponde está clave:
+			{
+				// Calcular a que reducer le corresponde está clave:
 				int r = key.hashCode()%Reducers.size();
-	
+
 				if (MapReduce.DEBUG) System.err.println("DEBUG::MapReduce::Suffle merge key " + key +" to reduce " + r);
-	
+
 				// Añadir todas las tuplas de la clave al reducer correspondiente.
-				Reducers.get(r).AddInputKeys(key, map.GetOutput().get(key));			
+				Reducers.get(r < 0? r + Reducers.size() : r).AddInputKeys(key, map.GetOutput().get(key));
 			}
-			
+
 			// Eliminar todas las salidas.
 			map.GetOutput().clear();
 		}
-		
+
 		return(Error.COk);
 	}
+
+	/*
+	private Error Suffle()
+	{
+		suffleThreads = new Thread[Reducers.size()];
+
+		for(int i = 0; i < Reducers.size(); i++)
+		{
+			suffleThreads[i] = new Thread(new ConcurrentSuffle());
+			suffleThreads[i].start();
+		}
+
+
+		try
+		{
+			for(Thread thread : suffleThreads)
+				thread.join();
+		}
+		catch (InterruptedException e)
+		{
+			Error.showError("MapReduce:: Error joining Suffle Threads");
+		}
+
+		return(Error.COk);
+	}
+
+
+	public class ConcurrentSuffle implements Runnable
+	{
+		@Override
+		public void run()
+		{
+			for(Map map : Mappers)
+			{
+				if (MapReduce.DEBUG) map.PrintOutputs();
+
+				for (String key : map.GetOutput().keySet())
+				{
+					if(!alreadySuffledKeys(key))
+					{
+						// Calcular a que reducer le corresponde está clave:
+						int r = key.hashCode()%Reducers.size();
+						if (MapReduce.DEBUG) System.err.println("DEBUG::MapReduce::Suffle merge key " + key +" to reduce " + r);
+
+						// Añadir todas las tuplas de la clave al reducer correspondiente.
+						Reducers.get(r < 0? r + Reducers.size() : r).AddInputKeys(key, map.GetOutput().get(key));
+						putToSuffledKeys(key);
+					}
+				}
+
+				// Eliminar todas las salidas.
+				map.GetOutput().clear();
+			}
+		}
+	}*/
 
 	
 	// Ejecuta cada uno de los Reducers.
 	private Error Reduces()
 	{
-		for(Reduce reduce : Reducers)
+		reduceThreads = new Thread[Reducers.size()];
+
+		for(int i = 0; i<Reducers.size(); i++)
 		{
-			if (reduce.Run()!=Error.COk)
-				Error.showError("MapReduce::Reduce Run error.\n");
+			reduceThreads[i] = new Thread(new ConcurrentRecude(Reducers.get(i)));
+			reduceThreads[i].start();
 		}
+
+		try
+		{
+			for(Thread thread : reduceThreads)
+				thread.join();
+		}
+		catch (InterruptedException e)
+		{
+			for(Thread thread : reduceThreads)
+				thread.interrupt();
+			Error.showError("MapReduce:: Error joining Reduce Threads");
+		}
+
 		return(Error.COk);
 	}
-	
-		
 	
 	public Error Reduce(Reduce reduce, String key, Collection<Integer> values)
 	{
