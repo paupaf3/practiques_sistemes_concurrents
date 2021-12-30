@@ -49,16 +49,17 @@ class Reduce
 
 	// Función para añadir las tuplas de entrada para la función de redución en forma de lista de 
 	// tuplas (key,value).
-	public void AddInputKeys(String key, Collection<Integer> values)
+	public void AddInputKeys(String key, Integer value)
 	{
-		for (Integer value : values)
-			AddInput(key, value);
+		AddInput(key, value);
 	}
 
 
 	private void AddInput(String key, Integer value)
 	{
-		if (MapReduce.DEBUG) System.err.println("DEBUG::Reduce add input "+ key + "-> " + value);
+		if (MapReduce.DEBUG)
+			System.err.println("DEBUG::Reduce add input "+ key + "-> " + value);
+
 		Input.put(key,value);
 	}
 
@@ -74,7 +75,7 @@ class Reduce
 			String key = keyIterator.next();
 
 			// Evitem strings buits
-			if(!key.isBlank())
+			if(!key.trim().isEmpty())
 			{
 				Error err = mapReduce.Reduce(this, key, Input.get(key));
 				if (err!=Error.COk)

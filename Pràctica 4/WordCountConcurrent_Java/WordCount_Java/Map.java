@@ -8,12 +8,14 @@ Grau Informàtica
 
 import java.io.*;
 import java.util.List;
+import java.util.Queue;
 import java.util.Vector;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 import com.google.common.collect.*;
 
 class MapInputTuple
 {
-	public static String END_OF_SPLIT = "END_OF_SPLIT";
 	long 	Key;
 	String	Value;
 
@@ -32,22 +34,54 @@ class MapInputTuple
 
 public class Map
 {
+	public static String END_OF_SPLIT = "END_OF_SPLIT";
+
 	private MapReduce mapReduce;
-	private Vector<MapInputTuple> Input = new Vector<MapInputTuple>();
-	private ListMultimap<String, Integer> Output = Multimaps.synchronizedListMultimap(ArrayListMultimap.<String, Integer> create());
+	public Vector<MapInputTuple> Input = new Vector<MapInputTuple>();
+
+	public Queue<String> queue = new ConcurrentLinkedQueue<String>();
 
 	public Map(MapReduce mapr)
 	{	
 		mapReduce=mapr;
 	}
 
+	// TODO OUTPUT will be deleted, use queue
+	/*
+	private ListMultimap<String, Integer> Output = Multimaps.synchronizedListMultimap(ArrayListMultimap.<String, Integer> create());
 
 	public ListMultimap<String, Integer> GetOutput()
 	{
 		return(Output);
 	}
 
+	public void PrintOutputs()
+	{
+		for (String key : Output.keySet())
+		{
+			List<Integer> ocurrences = Output.get(key);
+			System.out.println("Map " + this + " Output: key: "+ key + " -> " + ocurrences);
+		}
+	}
+	 */
 
+	// Mantener el hilo en espera mientras la Queue se encuentra vacía
+	public void threadSleepWhileQueueIsEmpty()
+	{
+		while(this.queue.isEmpty())
+		{
+			try
+			{
+				Thread.sleep(100);
+			}
+			catch (InterruptedException e)
+			{
+				Error.showError("MapReduce:: Map Sleep Thread Error");
+			}
+		}
+	}
+
+	// Mantener el hilo en espera mientras Input se encuentra vacío
 	public void threadSleepWhileInputIsEmpty()
 	{
 		while(this.Input.isEmpty())
@@ -62,17 +96,6 @@ public class Map
 			}
 		}
 	}
-
-
-	public void PrintOutputs()
-	{
-		for (String key : Output.keySet())
-		{
-			List<Integer> ocurrences = Output.get(key);
-			System.out.println("Map " + this + " Output: key: "+ key + " -> " + ocurrences);
-		}
-	}
-
 
 	// Lee fichero de entrada (split) línea a línea y lo guarda en una cola del Map en forma de
 	// tuplas (key,value).
@@ -97,12 +120,14 @@ public class Map
 		{
 			while ((line = br.readLine())!=null) 
 			{
-				if (MapReduce.DEBUG) System.err.println("DEBUG::Map input " + Offset + " -> " + line);
+				if (MapReduce.DEBUG)
+					System.err.println("DEBUG::Map input " + Offset + " -> " + line);
+
 				AddInput(new MapInputTuple(Offset, line));
 			    Offset+=line.length();
 			}
 			// Indiquem el final de fitxer per poder controla la lectura a la tasca de Map.
-			AddInput(new MapInputTuple(Offset + 1, MapInputTuple.END_OF_SPLIT));
+			AddInput(new MapInputTuple(Offset + 1, Map.END_OF_SPLIT));
 
 		}
 		catch (IOException e)
@@ -124,7 +149,7 @@ public class Map
 		return(Error.COk);
 	}
 
-	public void AddInput(MapInputTuple tuple)
+	public synchronized void AddInput(MapInputTuple tuple)
 	{
 		Input.add(tuple);
 	}
@@ -138,10 +163,13 @@ public class Map
 
 		this.threadSleepWhileInputIsEmpty();
 
-		while (!this.Input.get(0).getValue().equals(MapInputTuple.END_OF_SPLIT))
+		while (!this.Input.get(0).getValue().equals(Map.END_OF_SPLIT))
 		{
-			if (MapReduce.DEBUG) System.err.println("DEBUG::Map process input tuple " + Input.get(0).getKey() +" -> " + Input.get(0).getValue());
+			if (MapReduce.DEBUG)
+				System.err.println("DEBUG::Map process input tuple " + Input.get(0).getKey() +" -> " + Input.get(0).getValue());
+
 			err = mapReduce.Map(this, Input.get(0));
+
 			if (err!=Error.COk)
 				return(err);
 
@@ -149,7 +177,11 @@ public class Map
 
 			this.threadSleepWhileInputIsEmpty();
 		}
+
 		// Eliminar el END_OF_SPLIT de Input
+		EmitResult(END_OF_SPLIT,1);
+
+		// Añadir END_OF_SPLIT al final de la queue
 		Input.remove(0);
 
 		return(Error.COk);
@@ -157,10 +189,13 @@ public class Map
 
 
 	// Función para escribir un resultado parcial del Map en forma de tupla (key,value)
-	public void EmitResult(String key, int value)
+	public synchronized void EmitResult(String key, int value)
 	{
-		if (MapReduce.DEBUG) System.err.println("DEBUG::Map emit result " + key + " -> " + value);
-		Output.put(key,new Integer(value));
+		if (MapReduce.DEBUG)
+			System.err.println("DEBUG::Map emit result " + key + " -> " + value);
+
+		//Output.put(key,new Integer(value));
+		this.queue.add(key);
 	}
 }
 

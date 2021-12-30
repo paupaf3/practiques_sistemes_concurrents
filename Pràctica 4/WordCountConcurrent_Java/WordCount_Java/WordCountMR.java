@@ -12,6 +12,7 @@ import java.util.Collection;
 public class WordCountMR extends MapReduce 
 {
 
+
 	public WordCountMR(String[] args) 
 	{
 		// Procesar argumentos.
@@ -30,9 +31,9 @@ public class WordCountMR extends MapReduce
 	{
 		String value = tuple.getValue();
 
-		if (MapReduce.DEBUG) System.err.println("DEBUG::MapWordCount procesing tuple " + tuple.getKey() + " -> "+ tuple.getValue());
-		
-		
+		if (MapReduce.DEBUG)
+			System.err.println("DEBUG::MapWordCount procesing tuple " + tuple.getKey() + " -> "+ tuple.getValue());
+
 		// Convertir todos los posibles separadores de palabras a espacios.
 		value = value.replace(":", " ");
 		value = value.replace(".", " ");
@@ -71,16 +72,20 @@ public class WordCountMR extends MapReduce
 	{
 		int totalCount=0;
 
-		if (MapReduce.DEBUG) System.err.print("DEBUG::ReduceWordCount key " + key +"s -> ");
+		if (MapReduce.DEBUG)
+			System.err.print("DEBUG::ReduceWordCount key " + key +"s -> ");
 
 		// Procesar todas los valores para esta clave.
 		for(int number : values)
 		{
-			if (MapReduce.DEBUG) System.err.print(" " + number);
+			if (MapReduce.DEBUG)
+				System.err.print(" " + number);
+
 			totalCount +=  number;
 		}
 
-		if (MapReduce.DEBUG) System.err.println(" ==> " + totalCount);
+		if (MapReduce.DEBUG)
+			System.err.println(" ==> " + totalCount);
 
 		reduce.EmitResult(key, totalCount);
 

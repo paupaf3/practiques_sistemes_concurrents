@@ -1,8 +1,8 @@
 <component name="libraryTable">
   <library name="WordCount_Java4">
     <CLASSES>
-      <root url="jar://$PROJECT_DIR$/Pràctica 1/Java/WordCount_Java/__MACOSX/WordCount_Java/._WordCount.jar!/" />
-      <root url="jar://$PROJECT_DIR$/Pràctica 1/Java/WordCount_Java/__MACOSX/WordCount_Java/._guava-20.0-hal.jar!/" />
+      <root url="jar://$PROJECT_DIR$/Pràctica 4/WordCountConcurrent_Java/WordCount_Java/guava-20.0-hal.jar!/" />
+      <root url="jar://$PROJECT_DIR$/Pràctica 4/WordCountConcurrent_Java/WordCount_Java/WordCount.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />
