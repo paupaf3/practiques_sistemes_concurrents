@@ -2715,8 +2715,8 @@ gauge 1
 accompanies 2
 chow 3
 Cambis 1
-Mather 1
 executioner 16
+Mather 1
 'This 1
 captainy 1
 mantelpiece 3
@@ -4650,8 +4650,8 @@ Jacqueline 1
 peppered 1
 Fleets 1
 brings 6
-adding 12
 bird 67
+adding 12
 clue 2
 legal 22
 Orator 1
@@ -5109,8 +5109,8 @@ Secretly 1
 Trip 2
 failures 3
 phosphorescence 1
-�long 12
 slam 1
+�long 12
 �maow 2
 weird 2
 farce 11
@@ -6474,8 +6474,8 @@ SERVICE 3
 compels 1
 consider 16
 railed 1
-VICTURNIEN'S 2
 whither 28
+VICTURNIEN'S 2
 Rock 6
 damper 3
 pews 2
@@ -8005,8 +8005,8 @@ Mathieu 9
 balmy 1
 distracted 8
 sylphs 1
-bulged 1
 carries 4
+bulged 1
 response 8
 d'antan 2
 � 1443

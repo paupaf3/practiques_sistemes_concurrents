@@ -8,12 +8,16 @@ Grau Informàtica
 
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-import java.util.Collection;
+import java.io.UnsupportedEncodingException;
 import java.util.Iterator;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.locks.Lock;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimaps;
+import statistics.StatisticsReduce;
 
 
 class Reduce
@@ -55,7 +59,7 @@ class Reduce
 	}
 
 
-	private void AddInput(String key, Integer value)
+	private synchronized void AddInput(String key, Integer value)
 	{
 		if (MapReduce.DEBUG)
 			System.err.println("DEBUG::Reduce add input "+ key + "-> " + value);
@@ -67,8 +71,9 @@ class Reduce
 	// Función de ejecución de la tarea Reduce: por cada tupla de entrada invoca a la función 
 	// especificada por el programador, pasandolo el objeto Reduce, la clave y la lista de 
 	// valores.
-	public Error Run() 
+	public Error Run(CyclicBarrier barrier, StatisticsReduce globalStatisticsReduce, Lock lock)
 	{
+		StatisticsReduce localStatisticReduce = new StatisticsReduce();
 		Iterator<String> keyIterator = Input.keySet().iterator();
 		while(keyIterator.hasNext())
 		{
@@ -77,16 +82,34 @@ class Reduce
 			// Evitem strings buits
 			if(!key.trim().isEmpty())
 			{
-				Error err = mapReduce.Reduce(this, key, Input.get(key));
+				globalStatisticsReduce.addToNumKeysSync();
+				globalStatisticsReduce.addToNumBytesSync(key);
+				localStatisticReduce.addToNumKeys();
+				localStatisticReduce.addToNumBytes(key);
+
+				Error err = mapReduce.Reduce(this, key, Input.get(key), globalStatisticsReduce, localStatisticReduce);
 				if (err!=Error.COk)
 					return(err);
 			}
 
 			keyIterator.remove();
 		}
-		
+
+		lock.lock();
+		localStatisticReduce.printStatistics("Estadísticas Locales Reduce");
+		lock.unlock();
+
 		Finish();
-		
+
+		try
+		{
+			barrier.await();
+		}
+		catch(InterruptedException | BrokenBarrierException e)
+		{
+			e.printStackTrace();
+		}
+
 		return(Error.COk);
 	}
 

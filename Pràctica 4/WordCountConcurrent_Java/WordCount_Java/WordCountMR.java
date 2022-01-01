@@ -6,6 +6,9 @@ Grau Informàtica
 48053637J - Dand Marbà Sera
 --------------------------------------------------------------- */
 
+import statistics.StatisticsMap;
+import statistics.StatisticsReduce;
+
 import java.util.Collection;
 
 
@@ -27,7 +30,7 @@ public class WordCountMR extends MapReduce
 
 	// Word Count Map.
 	@Override
-	public Error Map(Map map, MapInputTuple tuple)
+	public Error Map(Map map, MapInputTuple tuple, StatisticsMap globalStatisticsMap, StatisticsMap localStatisticsMap)
 	{
 		String value = tuple.getValue();
 
@@ -59,8 +62,13 @@ public class WordCountMR extends MapReduce
 		value = value.replace("/", " ");
 
 		// Emit map result (word,'1').
-		for (String word : value.split("\\s+")) 
-	    	map.EmitResult(word,1);
+		for (String word : value.split("\\s+"))
+		{
+			globalStatisticsMap.addToNumExitTuplesSync();
+			localStatisticsMap.addToNumExitTuples();
+			map.EmitResult(word,1);
+		}
+
 
 		return(Error.COk);
 	}
@@ -68,7 +76,7 @@ public class WordCountMR extends MapReduce
 
 	// Word Count Reduce.
 	@Override
-	public Error Reduce(Reduce reduce, String key, Collection<Integer> values)
+	public Error Reduce(Reduce reduce, String key, Collection<Integer> values, StatisticsReduce globalStatisticsReduce, StatisticsReduce localStatisticsReduce)
 	{
 		int totalCount=0;
 
@@ -80,6 +88,9 @@ public class WordCountMR extends MapReduce
 		{
 			if (MapReduce.DEBUG)
 				System.err.print(" " + number);
+
+			globalStatisticsReduce.addToNumOcurrencesSync();
+			localStatisticsReduce.addToNumOcurrences();
 
 			totalCount +=  number;
 		}

@@ -10,6 +10,11 @@ public class StatisticsSuffle
         numTuples++;
     }
 
+    public synchronized void addToNumTuplesSync()
+    {
+        numTuples++;
+    }
+
     public int getNumTuples()
     {
         return this.numTuples;
@@ -23,8 +28,22 @@ public class StatisticsSuffle
         numKeys++;
     }
 
+    public synchronized void addToNumKeysSync()
+    {
+        numKeys++;
+    }
+
     public int getNumkeys()
     {
         return this.numKeys;
+    }
+
+    public void printStatistics(String title)
+    {
+        System.out.println("---------------------------------------------------------------");
+        System.out.println(title);
+        System.out.println("Tuplas procesadas: 	" + this.getNumTuples());
+        System.out.println("Claves procesadas: 	" + this.getNumkeys());
+        System.out.println("---------------------------------------------------------------");
     }
 }
